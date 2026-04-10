@@ -538,7 +538,7 @@ function drawText(t) {
   ctx.globalAlpha = fadeA;
 
   /* ─── Ornament — tăng size ─── */
-  const ornSz = Math.max(13, Math.round(H * 0.022));
+  const ornSz = Math.max(18, Math.round(H * 0.022));
   ctx.font = `300 ${ornSz}px 'Cinzel', serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = acol(0.55);
@@ -547,7 +547,7 @@ function drawText(t) {
   ctx.shadowBlur = 0;
 
   /* ─── Names with shimmer sweep ─── */
-  const nameSz = Math.max(32, Math.round(H * 0.085));
+  const nameSz = Math.max(37, Math.round(H * 0.085));
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.font = `${nameSz}px 'Great Vibes', cursive`;
@@ -644,7 +644,7 @@ function drawText(t) {
   ctx.beginPath(); ctx.moveTo(cx - divW/2, divY); ctx.lineTo(cx + divW/2, divY); ctx.stroke();
 
   /* ─── Date — tăng size ─── */
-  const dateSz = Math.max(13, Math.round(H * 0.026));
+  const dateSz = Math.max(18, Math.round(H * 0.026));
   ctx.font = `300 ${dateSz}px 'Cinzel', serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = acol(0.88);
@@ -653,7 +653,7 @@ function drawText(t) {
   ctx.shadowBlur = 0;
 
   /* ─── Message — tăng size ─── */
-  const msgSz = Math.max(13, Math.round(H * 0.024));
+  const msgSz = Math.max(18, Math.round(H * 0.024));
   ctx.font = `italic 300 ${msgSz}px 'Cormorant Garamond', serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.60)';
   ctx.shadowColor = 'rgba(255,255,255,0.2)'; ctx.shadowBlur = 10;
