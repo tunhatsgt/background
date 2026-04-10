@@ -134,6 +134,56 @@ html, body { width:100%; height:100%; overflow:hidden; background:#000; }
 .loader-bar { width:160px; height:1px; background:rgba(255,255,255,0.08); border-radius:1px; overflow:hidden; }
 .loader-fill { height:100%; width:0; background:var(--gold); animation:load-fill 2s ease forwards; }
 @keyframes load-fill { to{width:100%} }
+
+/* ── MUSIC PLAYER ── */
+.music-upload-label {
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  width:100%; padding:10px; border-radius:9px; cursor:pointer;
+  background:rgba(255,255,255,0.03); border:1px dashed rgba(201,168,76,0.35);
+  color:rgba(255,255,255,0.5); font-family:'Cinzel',serif;
+  font-size:9px; letter-spacing:2.5px; text-transform:uppercase;
+  transition:all .2s; margin-bottom:10px;
+}
+.music-upload-label:hover { background:rgba(201,168,76,0.08); border-color:rgba(201,168,76,0.6); color:var(--gold); }
+.music-upload-label input { display:none; }
+#musicPlayer {
+  display:none; background:rgba(255,255,255,0.03);
+  border:1px solid rgba(201,168,76,0.2); border-radius:10px;
+  padding:12px; margin-bottom:10px;
+}
+#musicFileName {
+  font-family:'Cormorant Garamond',serif; font-size:12px; font-style:italic;
+  color:rgba(255,255,255,0.6); text-align:center;
+  margin-bottom:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.music-controls { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+#playPauseBtn {
+  width:34px; height:34px; border-radius:50%; flex-shrink:0;
+  background:linear-gradient(135deg,rgba(201,168,76,0.25),rgba(201,168,76,0.1));
+  border:1px solid rgba(201,168,76,0.5); color:var(--gold);
+  font-size:14px; cursor:pointer; transition:all .2s;
+  display:flex; align-items:center; justify-content:center;
+}
+#playPauseBtn:hover { background:rgba(201,168,76,0.3); transform:scale(1.08); }
+.music-seek-wrap {
+  flex:1; height:3px; background:rgba(255,255,255,0.1);
+  border-radius:3px; cursor:pointer; position:relative;
+}
+#seekBar { height:100%; width:0%; background:linear-gradient(to right,var(--gold),#fff); border-radius:3px; pointer-events:none; }
+.music-time {
+  font-family:'Cinzel',serif; font-size:8px; letter-spacing:1px;
+  color:rgba(255,255,255,0.35); white-space:nowrap; flex-shrink:0;
+}
+.volume-row { display:flex; align-items:center; gap:8px; }
+.volume-icon { font-size:11px; color:rgba(255,255,255,0.35); flex-shrink:0; }
+#volumeSlider {
+  flex:1; -webkit-appearance:none; appearance:none;
+  height:2px; background:rgba(255,255,255,0.12); border-radius:2px; outline:none; cursor:pointer;
+}
+#volumeSlider::-webkit-slider-thumb {
+  -webkit-appearance:none; width:10px; height:10px; border-radius:50%;
+  background:var(--gold); cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -161,6 +211,29 @@ html, body { width:100%; height:100%; overflow:hidden; background:#000; }
   <div class="field"><label>Groom Name</label><input id="iGroom" value="Tứ Nhật" placeholder="Groom name"></div>
   <div class="field"><label>Wedding Date</label><input id="iDate" value="10 · 05 · 2026" placeholder="DD · MM · YYYY"></div>
   <div class="field"><label>Message</label><textarea id="iMsg" rows="2" placeholder="Custom message">Two souls, one beautiful journey</textarea></div>
+
+
+  <div class="panel-divider"></div>
+
+  <label class="music-upload-label">
+    ♪ &nbsp; Tải nhạc lên
+    <input type="file" id="musicFile" accept="audio/*">
+  </label>
+
+  <div id="musicPlayer">
+    <div id="musicFileName">Chưa có nhạc</div>
+    <div class="music-controls">
+      <button id="playPauseBtn">▶</button>
+      <div class="music-seek-wrap" id="seekWrap">
+        <div id="seekBar"></div>
+      </div>
+      <span class="music-time" id="musicTime">0:00 / 0:00</span>
+    </div>
+    <div class="volume-row">
+      <span class="volume-icon">🔊</span>
+      <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8">
+    </div>
+  </div>
 
   <div class="panel-divider"></div>
 
@@ -760,6 +833,60 @@ async function startExport() {
     document.getElementById('toggleBtn').style.opacity = '1';
   }
 }
+
+/* ══════════════════════════════════════════════════════
+   MUSIC PLAYER
+══════════════════════════════════════════════════════ */
+const audioEl = new Audio();
+audioEl.loop  = true;
+audioEl.volume = 0.8;
+
+document.getElementById('musicFile').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  audioEl.src = url;
+  audioEl.load();
+  document.getElementById('musicFileName').textContent = file.name;
+  document.getElementById('musicPlayer').style.display = 'block';
+  audioEl.play();
+  document.getElementById('playPauseBtn').textContent = '⏸';
+});
+
+document.getElementById('playPauseBtn').addEventListener('click', () => {
+  if (!audioEl.src) return;
+  if (audioEl.paused) {
+    audioEl.play();
+    document.getElementById('playPauseBtn').textContent = '⏸';
+  } else {
+    audioEl.pause();
+    document.getElementById('playPauseBtn').textContent = '▶';
+  }
+});
+
+document.getElementById('volumeSlider').addEventListener('input', e => {
+  audioEl.volume = parseFloat(e.target.value);
+});
+
+document.getElementById('seekWrap').addEventListener('click', e => {
+  if (!audioEl.duration) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct  = (e.clientX - rect.left) / rect.width;
+  audioEl.currentTime = pct * audioEl.duration;
+});
+
+function fmtTime(s) {
+  const m  = Math.floor(s / 60);
+  const ss = Math.floor(s % 60).toString().padStart(2, '0');
+  return m + ':' + ss;
+}
+setInterval(() => {
+  if (!audioEl.duration) return;
+  const pct = (audioEl.currentTime / audioEl.duration) * 100;
+  document.getElementById('seekBar').style.width = pct.toFixed(1) + '%';
+  document.getElementById('musicTime').textContent =
+    fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
+}, 250);
 
 /* ── LOADER DISMISS ── */
 setTimeout(() => {
