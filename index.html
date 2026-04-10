@@ -464,8 +464,8 @@ function drawText(t) {
   ctx.save();
   ctx.globalAlpha = fadeA;
 
-  /* ─── Ornament ─── */
-  const ornSz = Math.max(11, Math.round(H * 0.016));
+  /* ─── Ornament — tăng size ─── */
+  const ornSz = Math.max(13, Math.round(H * 0.022));
   ctx.font = `300 ${ornSz}px 'Cinzel', serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = acol(0.55);
@@ -475,7 +475,6 @@ function drawText(t) {
 
   /* ─── Names with shimmer sweep ─── */
   const nameSz = Math.max(32, Math.round(H * 0.085));
-  /* Must use textAlign='left' when measuring + positioning manually */
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.font = `${nameSz}px 'Great Vibes', cursive`;
@@ -490,7 +489,12 @@ function drawText(t) {
   const heartX    = rowStartX + bW + sep / 2;
   const nameY     = cy - H * 0.048;
 
-  /* Per-pixel shimmer: bright highlight sweeps across name */
+  /* Padding để không clip mất nét thừa của chữ cursive */
+  const padX   = nameSz * 0.5;  // padding ngang (đầu/đuôi chữ)
+  const padTop = nameSz * 1.1;  // padding trên — cursive ascender rất cao
+  const padBot = nameSz * 0.55; // padding dưới (descender)
+
+  /* Per-pixel shimmer */
   function shimmerAlpha(xFrac) {
     const dist = Math.abs(xFrac - sweepX);
     return Math.min(0.90 + Math.max(0, 1 - dist * 7) * 0.55, 1.0);
@@ -498,7 +502,7 @@ function drawText(t) {
 
   const cols = 60;
 
-  /* Bride — clip-column shimmer */
+  /* Bride — clip với padding rộng để không cắt nét chữ */
   ctx.font = `${nameSz}px 'Great Vibes', cursive`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -510,13 +514,19 @@ function drawText(t) {
     ctx.shadowColor = 'rgba(255,255,255,0.45)'; ctx.shadowBlur = 20;
     ctx.save();
     ctx.beginPath();
-    ctx.rect(x0, nameY - nameSz * 1.15, bW / cols + 1, nameSz * 1.35);
+    /* rect mở rộng: thêm padX hai bên, padTop/padBot trên dưới */
+    ctx.rect(
+      x0 - (i === 0 ? padX : 0),
+      nameY - padTop,
+      bW / cols + 1 + (i === 0 ? padX : 0) + (i === cols-1 ? padX : 0),
+      padTop + padBot
+    );
     ctx.clip();
     ctx.fillText(content.bride, rowStartX, nameY);
     ctx.restore();
   }
 
-  /* Heart — centered between the two names */
+  /* Heart */
   ctx.font = `${heartSz}px 'Cinzel', serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -526,7 +536,7 @@ function drawText(t) {
   ctx.fillText('♥', heartX, nameY - nameSz * 0.28);
   ctx.shadowBlur = 0;
 
-  /* Groom — clip-column shimmer */
+  /* Groom — clip với padding rộng */
   ctx.font = `${nameSz}px 'Great Vibes', cursive`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
@@ -538,7 +548,12 @@ function drawText(t) {
     ctx.shadowColor = 'rgba(255,255,255,0.45)'; ctx.shadowBlur = 20;
     ctx.save();
     ctx.beginPath();
-    ctx.rect(x0, nameY - nameSz * 1.15, gW / cols + 1, nameSz * 1.35);
+    ctx.rect(
+      x0 - (i === 0 ? padX : 0),
+      nameY - padTop,
+      gW / cols + 1 + (i === 0 ? padX : 0) + (i === cols-1 ? padX : 0),
+      padTop + padBot
+    );
     ctx.clip();
     ctx.fillText(content.groom, groomX, nameY);
     ctx.restore();
@@ -555,21 +570,21 @@ function drawText(t) {
   ctx.strokeStyle = divG; ctx.lineWidth = 0.8;
   ctx.beginPath(); ctx.moveTo(cx - divW/2, divY); ctx.lineTo(cx + divW/2, divY); ctx.stroke();
 
-  /* ─── Date ─── */
-  const dateSz = Math.max(10, Math.round(H * 0.020));
+  /* ─── Date — tăng size ─── */
+  const dateSz = Math.max(13, Math.round(H * 0.026));
   ctx.font = `300 ${dateSz}px 'Cinzel', serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = acol(0.88);
   ctx.shadowColor = acol(0.5); ctx.shadowBlur = 16;
-  ctx.fillText(content.date, cx, divY + H * 0.068);
+  ctx.fillText(content.date, cx, divY + H * 0.072);
   ctx.shadowBlur = 0;
 
-  /* ─── Message ─── */
-  const msgSz = Math.max(10, Math.round(H * 0.019));
+  /* ─── Message — tăng size ─── */
+  const msgSz = Math.max(13, Math.round(H * 0.024));
   ctx.font = `italic 300 ${msgSz}px 'Cormorant Garamond', serif`;
   ctx.fillStyle = 'rgba(255,255,255,0.60)';
   ctx.shadowColor = 'rgba(255,255,255,0.2)'; ctx.shadowBlur = 10;
-  ctx.fillText(content.msg, cx, divY + H * 0.118);
+  ctx.fillText(content.msg, cx, divY + H * 0.125);
   ctx.shadowBlur = 0;
 
   ctx.restore();
