@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cinematic Wedding Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Great+Vibes&family=Cinzel:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold: #c9a84c;
+  --gold-light: #e8d08a;
+  --gold-glow: rgba(201,168,76,0.4);
+  --white: #ffffff;
+  --panel-bg: rgba(6,4,12,0.92);
+  --panel-border: rgba(201,168,76,0.25);
+  --input-bg: rgba(255,255,255,0.04);
+  --text-dim: rgba(255,255,255,0.45);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html, body { width:100%; height:100%; overflow:hidden; background:#000; }
+
+/* ── CANVAS ── */
+#canvas { position:fixed; inset:0; z-index:1; }
+
+/* ── TOGGLE BUTTON ── */
+#toggleBtn {
+  position:fixed; bottom:28px; right:28px; z-index:100;
+  width:48px; height:48px; border-radius:50%;
+  background:rgba(6,4,12,0.85); border:1px solid var(--panel-border);
+  color:var(--gold); font-size:20px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  backdrop-filter:blur(12px); transition:all .25s;
+  box-shadow:0 0 20px rgba(201,168,76,0.15);
+}
+#toggleBtn:hover { background:rgba(201,168,76,0.12); transform:scale(1.08); }
+
+/* ── CONTROL PANEL ── */
+#panel {
+  position:fixed; bottom:90px; right:28px; z-index:99;
+  width:310px; background:var(--panel-bg);
+  border:1px solid var(--panel-border); border-radius:14px;
+  padding:24px 22px; backdrop-filter:blur(20px);
+  transform:translateY(20px) scale(0.96); opacity:0;
+  pointer-events:none; transition:all .32s cubic-bezier(0.22,1,0.36,1);
+  box-shadow:0 8px 40px rgba(0,0,0,0.6), 0 0 30px rgba(201,168,76,0.06);
+  /* From file 2: prevent overflow on small screens */
+  max-height: calc(100vh - 120px); overflow-y: auto;
+}
+#panel.open { transform:translateY(0) scale(1); opacity:1; pointer-events:all; }
+
+.panel-title {
+  font-family:'Cinzel',serif; font-size:11px; letter-spacing:5px;
+  color:rgba(201,168,76,0.7); text-transform:uppercase;
+  margin-bottom:20px; padding-bottom:12px;
+  border-bottom:1px solid rgba(201,168,76,0.15);
+}
+
+/* Theme tabs */
+.theme-tabs { display:flex; gap:6px; margin-bottom:20px; }
+.theme-tab {
+  flex:1; padding:7px 4px; border-radius:7px; border:1px solid rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.03); color:rgba(255,255,255,0.4);
+  font-family:'Cinzel',serif; font-size:9px; letter-spacing:1.5px;
+  cursor:pointer; transition:all .2s; text-transform:uppercase; text-align:center;
+}
+.theme-tab.active {
+  background:rgba(201,168,76,0.12); border-color:rgba(201,168,76,0.4);
+  color:var(--gold);
+}
+.theme-tab:hover:not(.active) { background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.65); }
+
+.field { margin-bottom:14px; }
+.field label {
+  display:block; font-size:9px; letter-spacing:3.5px;
+  color:var(--text-dim); text-transform:uppercase;
+  margin-bottom:5px; font-family:'Cinzel',serif;
+}
+.field input, .field textarea {
+  width:100%; background:var(--input-bg);
+  border:1px solid rgba(255,255,255,0.1); border-radius:7px;
+  padding:8px 11px; color:#fff; font-family:'Cormorant Garamond',serif;
+  font-size:14px; outline:none; resize:none;
+  transition:border-color .2s;
+}
+.field input:focus, .field textarea:focus { border-color:rgba(201,168,76,0.45); }
+.field input::placeholder, .field textarea::placeholder { color:rgba(255,255,255,0.2); }
+
+.panel-divider { height:1px; background:rgba(201,168,76,0.12); margin:16px 0; }
+
+/* Export button */
+.export-btn {
+  width:100%; padding:11px; border-radius:9px;
+  background:linear-gradient(135deg, rgba(201,168,76,0.18), rgba(201,168,76,0.08));
+  border:1px solid rgba(201,168,76,0.4); color:var(--gold);
+  font-family:'Cinzel',serif; font-size:10px; letter-spacing:3px;
+  cursor:pointer; transition:all .22s; text-transform:uppercase;
+  margin-bottom:8px;
+}
+.export-btn:hover { background:rgba(201,168,76,0.22); }
+.export-btn:disabled { opacity:0.4; pointer-events:none; }
+.export-btn.recording { border-color:#f55; color:#f88; animation:rec-blink 1s infinite; }
+@keyframes rec-blink { 0%,100%{opacity:1}50%{opacity:.5} }
+
+.fps-row { display:flex; gap:8px; margin-bottom:14px; }
+.fps-btn {
+  flex:1; padding:6px; border-radius:6px;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1);
+  color:rgba(255,255,255,0.4); font-family:'Cinzel',serif;
+  font-size:9px; letter-spacing:2px; cursor:pointer; transition:all .2s;
+  text-transform:uppercase;
+}
+.fps-btn.active { background:rgba(201,168,76,0.12); border-color:rgba(201,168,76,0.35); color:var(--gold); }
+
+/* ── PROGRESS ── */
+#progress {
+  position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+  background:rgba(6,4,12,0.92); border:1px solid rgba(201,168,76,0.3);
+  border-radius:30px; padding:12px 32px; color:rgba(255,255,255,0.8);
+  font-family:'Cinzel',serif; font-size:11px; letter-spacing:3px;
+  z-index:200; display:none; min-width:360px; text-align:center;
+  backdrop-filter:blur(16px);
+}
+.prog-bar-wrap { margin-top:8px; height:2px; background:rgba(255,255,255,0.1); border-radius:2px; overflow:hidden; }
+.prog-bar { height:100%; width:0%; background:linear-gradient(to right,var(--gold),#fff); border-radius:2px; transition:width .08s linear; }
+
+/* ── LOADER ── */
+#loader {
+  position:fixed; inset:0; z-index:500; background:#000;
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:16px; transition:opacity 1s ease;
+}
+#loader.fade { opacity:0; pointer-events:none; }
+.loader-text { font-family:'Cinzel',serif; font-size:12px; letter-spacing:6px; color:rgba(201,168,76,0.6); text-transform:uppercase; }
+.loader-bar { width:160px; height:1px; background:rgba(255,255,255,0.08); border-radius:1px; overflow:hidden; }
+.loader-fill { height:100%; width:0; background:var(--gold); animation:load-fill 2s ease forwards; }
+@keyframes load-fill { to{width:100%} }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="loader-text">Preparing Scene</div>
+  <div class="loader-bar"><div class="loader-fill"></div></div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<button id="toggleBtn" title="Settings">⚙</button>
+
+<div id="panel">
+  <div class="panel-title">✦ &nbsp; Wedding Studio</div>
+
+  <div class="theme-tabs">
+    <div class="theme-tab active" data-theme="gold">Gold</div>
+    <div class="theme-tab" data-theme="pink">Romantic</div>
+    <div class="theme-tab" data-theme="bw">Classic</div>
+    <div class="theme-tab" data-theme="blue">Crystal</div>
+  </div>
+
+  <div class="field"><label>Bride Name</label><input id="iBride" value="Tú Trinh" placeholder="Bride name"></div>
+  <div class="field"><label>Groom Name</label><input id="iGroom" value="Tứ Nhật" placeholder="Groom name"></div>
+  <div class="field"><label>Wedding Date</label><input id="iDate" value="10 · 05 · 2026" placeholder="DD · MM · YYYY"></div>
+  <div class="field"><label>Message</label><textarea id="iMsg" rows="2" placeholder="Custom message">Two souls, one beautiful journey</textarea></div>
+
+  <div class="panel-divider"></div>
+
+  <div class="fps-row">
+    <button class="fps-btn" data-fps="30">30 FPS</button>
+    <button class="fps-btn active" data-fps="60">60 FPS</button>
+    <button class="fps-btn" data-dur="10">10s</button>
+    <button class="fps-btn active" data-dur="15">15s</button>
+  </div>
+
+  <button class="export-btn" id="exportBtn">⏺ &nbsp; Export MP4</button>
+</div>
+
+<div id="progress">
+  <div id="progLabel">Recording... 0.0s / 15s</div>
+  <div class="prog-bar-wrap"><div class="prog-bar" id="progBar"></div></div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════
+   CINEMATIC WEDDING STUDIO — Merged Best-Of-Both
+   
+   KEY ARCHITECTURE (from file 2):
+   • All text drawn directly on <canvas> → captured in MP4 export
+   • Per-pixel shimmer sweep on names — cinematic quality
+   
+   VISUAL IMPROVEMENTS (from file 1):
+   • Light shaft uses narrow cone (botW = w*0.45) for more elegant shafts
+   • Richer particle layer config with more particles
+   • Camera slow zoom system
+══════════════════════════════════════════════════════ */
+
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+let W = 0, H = 0, dpr = 1;
+
+/* ── THEME CONFIG ── */
+const THEMES = {
+  gold:  { accent:[201,168,76],  shaft:[200,218,255], particle:[230,240,255], ground:[201,168,76]  },
+  pink:  { accent:[220,150,170], shaft:[255,210,220], particle:[255,225,230], ground:[220,150,170] },
+  bw:    { accent:[220,220,220], shaft:[230,230,240], particle:[240,240,240], ground:[200,200,200] },
+  blue:  { accent:[100,180,255], shaft:[150,210,255], particle:[200,230,255], ground:[100,180,255] },
+};
+let theme = THEMES.gold;
+let selectedFPS = 60, selectedDur = 15;
+let isRecording = false;
+
+/* Live-edit content object */
+let content = {
+  bride: 'Tú Trinh',
+  groom: 'Tứ Nhật',
+  date:  '10 · 05 · 2026',
+  msg:   'Two souls, one beautiful journey'
+};
+
+/* Wait for Google Fonts before rendering text */
+let fontsReady = false;
+document.fonts.ready.then(() => { fontsReady = true; });
+
+/* ── SHAFTS — declared early so resize() can call buildShafts() ── */
+let shafts = [];
+function buildShafts() {
+  shafts = [];
+  const positions = [0.03,0.08,0.17,0.27,0.38,0.50,0.62,0.73,0.83,0.92,0.97];
+  const widths    = [0.030,0.022,0.040,0.028,0.050,0.075,0.050,0.028,0.040,0.022,0.030];
+  const alphas    = [0.22, 0.15, 0.30, 0.20, 0.38, 0.60, 0.38, 0.20, 0.30, 0.15, 0.22];
+  positions.forEach((p, i) => {
+    shafts.push({
+      xr: p, wr: widths[i], a: alphas[i],
+      dur: 8 + Math.random() * 10,
+      off: Math.random() * Math.PI * 2,
+    });
+  });
+}
+
+/* ── RESIZE ── */
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width  = W * dpr; canvas.height = H * dpr;
+  canvas.style.width  = W + 'px'; canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  buildShafts();
+}
+resize();
+window.addEventListener('resize', resize);
+
+/* ══════════════════════════════════════════════════════
+   PARTICLE SYSTEM — 4 depth layers (file 1 counts)
+══════════════════════════════════════════════════════ */
+const LAYER_CONFIG = [
+  { z:0.06, n:400, sMin:0.18, sMax:0.65,  aMin:0.04, aMax:0.18, vyMin:0.04, vyMax:0.16, drift:0.10 },
+  { z:0.20, n:300, sMin:0.30, sMax:1.0,   aMin:0.08, aMax:0.30, vyMin:0.07, vyMax:0.26, drift:0.16 },
+  { z:0.50, n:200, sMin:0.55, sMax:1.65,  aMin:0.13, aMax:0.50, vyMin:0.13, vyMax:0.44, drift:0.24 },
+  { z:0.85, n:110, sMin:0.90, sMax:3.2,   aMin:0.20, aMax:0.85, vyMin:0.22, vyMax:0.85, drift:0.38 },
+];
+
+class Particle {
+  constructor(l, init) { this.l = l; this.reset(init); }
+  reset(init) {
+    const l = this.l;
+    this.x  = Math.random() * W;
+    this.y  = init ? Math.random() * H : -8 - Math.random() * H * 0.15;
+    this.r  = l.sMin + Math.random() * (l.sMax - l.sMin);
+    this.a  = l.aMin + Math.random() * (l.aMax - l.aMin);
+    this.vy = l.vyMin + Math.random() * (l.vyMax - l.vyMin);
+    this.vx = (Math.random() - 0.5) * l.drift;
+    this.twF = 0.018 + Math.random() * 0.055;
+    this.twP = Math.random() * Math.PI * 2;
+    this.swA = (Math.random() - 0.5) * 0.006;
+    this.swF = 0.5 + Math.random() * 1.5;
+    this.swP = Math.random() * Math.PI * 2;
+    this.bokeh   = l.z > 0.45 && this.r > 1.2 && Math.random() < 0.30;
+    this.sparkle = this.r > 0.5 && Math.random() < 0.55;
+  }
+  update(t) {
+    this.y += this.vy;
+    this.x += this.vx + Math.sin(t * this.swF + this.swP) * this.swA * W;
+    if (this.x < -5) this.x = W + 5;
+    if (this.x > W + 5) this.x = -5;
+    if (this.y > H + 10) this.reset(false);
+  }
+  draw(t) {
+    const tw   = 0.5 + 0.5 * Math.sin(t * 60 * this.twF + this.twP);
+    const alpha = this.a * (0.52 + 0.48 * tw);
+    const [pr, pg, pb] = theme.particle;
+
+    if (this.bokeh) {
+      const g = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r * 4);
+      g.addColorStop(0,    `rgba(${pr},${pg},${pb},${(alpha*0.92).toFixed(3)})`);
+      g.addColorStop(0.45, `rgba(${pr},${pg},${pb},${(alpha*0.42).toFixed(3)})`);
+      g.addColorStop(1,    `rgba(${pr},${pg},${pb},0)`);
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r * 4, 0, Math.PI * 2);
+      ctx.fillStyle = g; ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${pr},${pg},${pb},${alpha.toFixed(3)})`;
+      ctx.fill();
+    }
+
+    if (this.sparkle && tw > 0.74) {
+      const len = this.r * (this.bokeh ? 5.5 : 4.0);
+      ctx.strokeStyle = `rgba(${pr},${pg},${pb},${(alpha*0.5).toFixed(3)})`;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(this.x - len, this.y); ctx.lineTo(this.x + len, this.y);
+      ctx.moveTo(this.x, this.y - len); ctx.lineTo(this.x, this.y + len);
+      ctx.stroke();
+    }
+  }
+}
+
+let particles = [];
+function initParticles() {
+  particles = [];
+  LAYER_CONFIG.forEach(l => {
+    for (let i = 0; i < l.n; i++) particles.push(new Particle(l, true));
+  });
+}
+initParticles();
+
+/* ── GROUND DOTS ── */
+const GROUND_COUNT = 900;
+class GroundDot {
+  constructor(init) { this.reset(init); }
+  reset(init) {
+    this.x = Math.random() * W;
+    const zone = Math.random();
+    if (zone < 0.65)      this.y = H * 0.72 + Math.random() * H * 0.32;
+    else if (zone < 0.85) this.y = Math.random() * H * 0.22;
+    else                  this.y = init ? Math.random() * H : -5;
+    this.r = 0.2 + Math.random() * 1.1;
+    this.a = 0.08 + Math.random() * 0.6;
+    this.vx = (Math.random() - 0.5) * 0.22;
+    this.vy = (this.y < H * 0.25) ? 0.04 + Math.random() * 0.18 : -(Math.random() * 0.12);
+    this.twF = 0.02 + Math.random() * 0.10;
+    this.twP = Math.random() * Math.PI * 2;
+    this.life = 0; this.maxLife = 200 + Math.random() * 500;
+  }
+  update() {
+    this.x += this.vx; this.y += this.vy; this.life++;
+    if (this.x < -4) this.x = W + 4;
+    if (this.x > W + 4) this.x = -4;
+    if (this.life > this.maxLife || this.y < -10 || this.y > H + 10) this.reset(false);
+  }
+  draw(t) {
+    const tw = 0.5 + 0.5 * Math.sin(t * 60 * this.twF + this.twP);
+    const fd = Math.min(this.life / 30, 1) * Math.min((this.maxLife - this.life) / 30, 1);
+    const a  = this.a * tw * fd;
+    if (a < 0.01) return;
+    const [pr, pg, pb] = theme.particle;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${pr},${pg},${pb},${a.toFixed(3)})`;
+    ctx.fill();
+  }
+}
+let gDots = Array.from({length: GROUND_COUNT}, () => new GroundDot(true));
+
+/* ══════════════════════════════════════════════════════
+   LIGHT SHAFTS
+   Uses narrow-cone style from file 1 (botW = w*0.45)
+   for more elegant convergent shafts
+══════════════════════════════════════════════════════ */
+
+function drawShafts(t) {
+  const [sr, sg, sb] = theme.shaft;
+  shafts.forEach(s => {
+    const pulse = 0.52 + 0.48 * Math.sin((t / s.dur) * Math.PI * 2 + s.off);
+    const alpha = s.a * pulse;
+    const cx  = s.xr * W;
+    const w   = s.wr * W;
+    /* Narrow cone from file 1: top full width, bottom 45% — more cinematic */
+    const topW = w; const botW = w * 0.45;
+
+    const g = ctx.createLinearGradient(cx, 0, cx, H);
+    g.addColorStop(0,    `rgba(${sr},${sg},${sb},${(alpha*0.88).toFixed(3)})`);
+    g.addColorStop(0.28, `rgba(${sr},${sg},${sb},${(alpha*0.52).toFixed(3)})`);
+    g.addColorStop(0.60, `rgba(${sr},${sg},${sb},${(alpha*0.20).toFixed(3)})`);
+    g.addColorStop(0.82, `rgba(${sr},${sg},${sb},${(alpha*0.05).toFixed(3)})`);
+    g.addColorStop(1,    'rgba(0,0,0,0)');
+
+    ctx.save();
+    ctx.filter = `blur(${(w * 0.42).toFixed(1)}px)`;
+    ctx.beginPath();
+    ctx.moveTo(cx - topW/2, 0); ctx.lineTo(cx + topW/2, 0);
+    ctx.lineTo(cx + botW/2, H); ctx.lineTo(cx - botW/2, H);
+    ctx.closePath();
+    ctx.fillStyle = g; ctx.fill();
+    ctx.restore();
+  });
+}
+
+/* ── BACKGROUND ── */
+function drawBg(t) {
+  const bg = ctx.createRadialGradient(W/2, H*0.42, 0, W/2, H*0.42, W*0.72);
+  bg.addColorStop(0,   'rgba(12,8,22,1)');
+  bg.addColorStop(0.5, 'rgba(5,3,10,1)');
+  bg.addColorStop(1,   'rgba(0,0,0,1)');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+  const fp = 0.8 + 0.2 * Math.sin(t * 0.4);
+  const fog = ctx.createRadialGradient(W/2, H*0.5, 0, W/2, H*0.5, W*0.38);
+  fog.addColorStop(0,   `rgba(22,18,40,${(0.55*fp).toFixed(3)})`);
+  fog.addColorStop(0.5, `rgba(14,10,28,${(0.25*fp).toFixed(3)})`);
+  fog.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = fog; ctx.fillRect(0, 0, W, H);
+}
+
+function drawGlows(t) {
+  const [gr, gg, gb] = theme.ground;
+  const p = 0.82 + 0.18 * Math.sin(t * 0.55);
+
+  const g1 = ctx.createRadialGradient(W/2, H, 0, W/2, H, W*0.56);
+  g1.addColorStop(0,    `rgba(${gr},${gg},${gb},${(0.26*p).toFixed(3)})`);
+  g1.addColorStop(0.25, `rgba(${gr},${gg},${gb},${(0.14*p).toFixed(3)})`);
+  g1.addColorStop(0.55, `rgba(${gr},${gg},${gb},${(0.05*p).toFixed(3)})`);
+  g1.addColorStop(1,    'rgba(0,0,0,0)');
+  ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
+
+  const g2 = ctx.createRadialGradient(W/2, 0, 0, W/2, 0, W*0.48);
+  g2.addColorStop(0,   `rgba(210,225,255,${(0.16*p).toFixed(3)})`);
+  g2.addColorStop(0.4, `rgba(190,210,255,${(0.07*p).toFixed(3)})`);
+  g2.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
+
+  const sp = 0.88 + 0.12 * Math.sin(t * 0.8 + 1.2);
+  const g3 = ctx.createRadialGradient(W/2, H*0.5, 0, W/2, H*0.5, W*0.28);
+  g3.addColorStop(0,   `rgba(255,255,255,${(0.04*sp).toFixed(3)})`);
+  g3.addColorStop(0.5, `rgba(220,230,255,${(0.015*sp).toFixed(3)})`);
+  g3.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = g3; ctx.fillRect(0, 0, W, H);
+}
+
+/* ══════════════════════════════════════════════════════
+   CANVAS TEXT — drawn every frame OUTSIDE zoom
+   Key feature from file 2: text is part of canvas stream
+   → captured correctly in MP4 export
+   
+   Includes shimmer sweep effect on names from file 2
+   which creates a beautiful per-pixel light sweep
+══════════════════════════════════════════════════════ */
+const TEXT_DELAY = 3.2;
+const TEXT_FADE  = 2.5;
+
+function drawText(t) {
+  if (t < TEXT_DELAY) return;
+  const elapsed = t - TEXT_DELAY;
+  const fadeA   = Math.min(elapsed / TEXT_FADE, 1.0);
+  if (fadeA <= 0) return;
+
+  const cx = W / 2, cy = H / 2;
+  const [ar, ag, ab] = theme.accent;
+  const acol = (a) => `rgba(${ar},${ag},${ab},${a.toFixed(3)})`;
+
+  /* Shimmer sweep: travels left → right every 5s */
+  const sweepX = (elapsed % 5.0) / 5.0;
+
+  ctx.save();
+  ctx.globalAlpha = fadeA;
+
+  /* ─── Ornament ─── */
+  const ornSz = Math.max(11, Math.round(H * 0.016));
+  ctx.font = `300 ${ornSz}px 'Cinzel', serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = acol(0.55);
+  ctx.shadowColor = acol(0.5); ctx.shadowBlur = 14;
+  ctx.fillText('✦   Forever Begins Today   ✦', cx, cy - H * 0.225);
+  ctx.shadowBlur = 0;
+
+  /* ─── Names with shimmer sweep ─── */
+  const nameSz = Math.max(32, Math.round(H * 0.085));
+  /* Must use textAlign='left' when measuring + positioning manually */
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = `${nameSz}px 'Great Vibes', cursive`;
+
+  const bW      = ctx.measureText(content.bride).width;
+  const gW      = ctx.measureText(content.groom).width;
+  const heartSz = Math.round(nameSz * 0.38);
+  const sep     = heartSz * 2.2;
+  const rowW    = bW + sep + gW;
+  const rowStartX = cx - rowW / 2;
+  const groomX    = rowStartX + bW + sep;
+  const heartX    = rowStartX + bW + sep / 2;
+  const nameY     = cy - H * 0.048;
+
+  /* Per-pixel shimmer: bright highlight sweeps across name */
+  function shimmerAlpha(xFrac) {
+    const dist = Math.abs(xFrac - sweepX);
+    return Math.min(0.90 + Math.max(0, 1 - dist * 7) * 0.55, 1.0);
+  }
+
+  const cols = 60;
+
+  /* Bride — clip-column shimmer */
+  ctx.font = `${nameSz}px 'Great Vibes', cursive`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  for (let i = 0; i < cols; i++) {
+    const x0   = rowStartX + (i / cols) * bW;
+    const frac = x0 / W;
+    const a    = shimmerAlpha(frac);
+    ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+    ctx.shadowColor = 'rgba(255,255,255,0.45)'; ctx.shadowBlur = 20;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x0, nameY - nameSz * 1.15, bW / cols + 1, nameSz * 1.35);
+    ctx.clip();
+    ctx.fillText(content.bride, rowStartX, nameY);
+    ctx.restore();
+  }
+
+  /* Heart — centered between the two names */
+  ctx.font = `${heartSz}px 'Cinzel', serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const hPulse = 0.85 + 0.15 * Math.sin(t * 2.6);
+  ctx.fillStyle  = acol(0.92 * hPulse);
+  ctx.shadowColor = acol(0.6); ctx.shadowBlur = 16;
+  ctx.fillText('♥', heartX, nameY - nameSz * 0.28);
+  ctx.shadowBlur = 0;
+
+  /* Groom — clip-column shimmer */
+  ctx.font = `${nameSz}px 'Great Vibes', cursive`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  for (let i = 0; i < cols; i++) {
+    const x0   = groomX + (i / cols) * gW;
+    const frac = x0 / W;
+    const a    = shimmerAlpha(frac);
+    ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+    ctx.shadowColor = 'rgba(255,255,255,0.45)'; ctx.shadowBlur = 20;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x0, nameY - nameSz * 1.15, gW / cols + 1, nameSz * 1.35);
+    ctx.clip();
+    ctx.fillText(content.groom, groomX, nameY);
+    ctx.restore();
+  }
+  ctx.shadowBlur = 0;
+
+  /* ─── Divider line ─── */
+  const divY = cy + H * 0.048;
+  const divW = Math.min(W * 0.28, 380);
+  const divG = ctx.createLinearGradient(cx - divW/2, divY, cx + divW/2, divY);
+  divG.addColorStop(0, 'rgba(255,255,255,0)');
+  divG.addColorStop(0.5, acol(0.5));
+  divG.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.strokeStyle = divG; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(cx - divW/2, divY); ctx.lineTo(cx + divW/2, divY); ctx.stroke();
+
+  /* ─── Date ─── */
+  const dateSz = Math.max(10, Math.round(H * 0.020));
+  ctx.font = `300 ${dateSz}px 'Cinzel', serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = acol(0.88);
+  ctx.shadowColor = acol(0.5); ctx.shadowBlur = 16;
+  ctx.fillText(content.date, cx, divY + H * 0.068);
+  ctx.shadowBlur = 0;
+
+  /* ─── Message ─── */
+  const msgSz = Math.max(10, Math.round(H * 0.019));
+  ctx.font = `italic 300 ${msgSz}px 'Cormorant Garamond', serif`;
+  ctx.fillStyle = 'rgba(255,255,255,0.60)';
+  ctx.shadowColor = 'rgba(255,255,255,0.2)'; ctx.shadowBlur = 10;
+  ctx.fillText(content.msg, cx, divY + H * 0.118);
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
+}
+
+/* ══════════════════════════════════════════════════════
+   CAMERA SLOW ZOOM (from file 1)
+══════════════════════════════════════════════════════ */
+const ZOOM_SPEED = 0.000018;
+const ZOOM_MAX   = 1.045;
+
+/* ══════════════════════════════════════════════════════
+   MAIN RENDER LOOP
+══════════════════════════════════════════════════════ */
+let t0 = null;
+function render(ts) {
+  if (!t0) t0 = ts;
+  const t = (ts - t0) / 1000;
+
+  if (!fontsReady) { requestAnimationFrame(render); return; }
+
+  /* Zoom context — particles/background zoom in slowly */
+  const zoom = 1.0 + Math.min(t * ZOOM_SPEED, ZOOM_MAX - 1.0);
+  ctx.save();
+  ctx.translate(W/2, H/2);
+  ctx.scale(zoom, zoom);
+  ctx.translate(-W/2, -H/2);
+
+  drawBg(t);
+  drawShafts(t);
+  drawGlows(t);
+  gDots.forEach(d => { d.update(); d.draw(t); });
+  particles.forEach(p => { p.update(t); p.draw(t); });
+
+  ctx.restore();
+
+  /* Text drawn OUTSIDE zoom — always sharp, always captured in stream */
+  drawText(t);
+
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
+/* ══════════════════════════════════════════════════════
+   THEME SWITCHER
+══════════════════════════════════════════════════════ */
+function applyTheme(name) {
+  theme = THEMES[name] || THEMES.gold;
+  const [r, g, b] = theme.accent;
+  document.documentElement.style.setProperty('--gold', `rgb(${r},${g},${b})`);
+  document.documentElement.style.setProperty('--gold-light', `rgb(${r+30},${g+30},${b+30})`);
+  document.documentElement.style.setProperty('--gold-glow', `rgba(${r},${g},${b},0.4)`);
+}
+document.querySelectorAll('.theme-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.theme-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    applyTheme(tab.dataset.theme);
+  });
+});
+
+/* ══════════════════════════════════════════════════════
+   LIVE EDIT — updates content object (used by drawText)
+══════════════════════════════════════════════════════ */
+document.getElementById('iBride').addEventListener('input', e => { content.bride = e.target.value || 'Bride'; });
+document.getElementById('iGroom').addEventListener('input', e => { content.groom = e.target.value || 'Groom'; });
+document.getElementById('iDate').addEventListener('input',  e => { content.date  = e.target.value; });
+document.getElementById('iMsg').addEventListener('input',   e => { content.msg   = e.target.value; });
+
+/* ══════════════════════════════════════════════════════
+   PANEL TOGGLE
+══════════════════════════════════════════════════════ */
+let panelOpen = false;
+document.getElementById('toggleBtn').addEventListener('click', () => {
+  panelOpen = !panelOpen;
+  document.getElementById('panel').classList.toggle('open', panelOpen);
+  document.getElementById('toggleBtn').textContent = panelOpen ? '✕' : '⚙';
+});
+
+/* ── FPS / DURATION SELECT ── */
+document.querySelectorAll('.fps-btn[data-fps]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fps-btn[data-fps]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedFPS = parseInt(btn.dataset.fps);
+  });
+});
+document.querySelectorAll('.fps-btn[data-dur]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fps-btn[data-dur]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedDur = parseInt(btn.dataset.dur);
+  });
+});
+
+/* ══════════════════════════════════════════════════════
+   EXPORT MP4
+   canvas.captureStream() captures BOTH background + text
+   since all rendering happens on canvas (file 2 approach)
+══════════════════════════════════════════════════════ */
+document.getElementById('exportBtn').addEventListener('click', startExport);
+
+async function startExport() {
+  if (isRecording) return;
+  isRecording = true;
+
+  const btn     = document.getElementById('exportBtn');
+  const prog    = document.getElementById('progress');
+  const progBar = document.getElementById('progBar');
+  const progLbl = document.getElementById('progLabel');
+
+  btn.classList.add('recording');
+  btn.textContent = '⏺  Recording…';
+  btn.disabled = true;
+  prog.style.display = 'block';
+
+  /* Hide controls during recording */
+  document.getElementById('toggleBtn').style.opacity = '0';
+  document.getElementById('panel').classList.remove('open');
+  panelOpen = false;
+
+  const mimeType = [
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+    'video/mp4;codecs=avc1',
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm',
+  ].find(m => { try { return MediaRecorder.isTypeSupported(m); } catch(e){ return false; } }) || 'video/webm';
+
+  let recorder, chunks = [];
+  try {
+    const stream = canvas.captureStream(selectedFPS);
+    recorder = new MediaRecorder(stream, {
+      mimeType,
+      videoBitsPerSecond: 20_000_000,
+    });
+  } catch(e) {
+    alert('Trình duyệt không hỗ trợ ghi video. Vui lòng dùng Chrome hoặc Edge.');
+    cleanup(); return;
+  }
+
+  recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+  recorder.onstop = () => {
+    const ext  = mimeType.includes('mp4') ? 'mp4' : 'webm';
+    const blob = new Blob(chunks, { type: mimeType });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `wedding_cinematic.${ext}`; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    cleanup();
+  };
+
+  recorder.start(100);
+  const recStart = performance.now();
+
+  function tick() {
+    const elapsed = (performance.now() - recStart) / 1000;
+    if (elapsed >= selectedDur) { recorder.stop(); return; }
+    const pct = elapsed / selectedDur;
+    progBar.style.width = (pct * 100).toFixed(1) + '%';
+    progLbl.textContent = `Recording... ${elapsed.toFixed(1)}s / ${selectedDur}s`;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  function cleanup() {
+    isRecording = false;
+    btn.classList.remove('recording');
+    btn.textContent = '⏺  Export MP4';
+    btn.disabled = false;
+    prog.style.display = 'none';
+    progBar.style.width = '0%';
+    document.getElementById('toggleBtn').style.opacity = '1';
+  }
+}
+
+/* ── LOADER DISMISS ── */
+setTimeout(() => {
+  const loader = document.getElementById('loader');
+  loader.classList.add('fade');
+  setTimeout(() => loader.remove(), 1200);
+}, 2100);
+</script>
+</body>
+</html>
